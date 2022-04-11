@@ -1,0 +1,131 @@
+---
+title: "NFT Decentraland Trends Predictions and Analysis"
+authors: "Nandita Gurwara, Shweta Mishra, Shailesh Chikne, Rishabh Chhaparia"
+date: "04/01/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+remove.packages("rlang")
+```
+```{r}
+install.packages("rlang")
+```
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+options(warn = -1)
+library(rlang)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(modelr)
+library(stringr)
+library(ggpubr)
+```
+
+
+```{r warning=FALSE}
+# Read the data from CSV files
+
+nftdf <- read_csv("./NFT_Decentraland.csv", col_types = cols())
+
+nftdf <- nftdf %>%
+  mutate(
+    createdAt = as.POSIXct(createdAt, origin = "1970-01-01"),
+    updatedAt = as.POSIXct(updatedAt, origin = "1970-01-01"),
+    expiresAt = as.POSIXct(expiresAt * 0.001, origin = "1970-01-01"),
+    price = price / (10**18)
+  )
+
+df_split <- split(nftdf, nftdf$nftAddress)
+
+for (i in 1:length(df_split)) {
+  df_split[[i]] <- df_split[[i]] %>%
+    mutate(sale_type = ifelse(createdAt == min(df_split[[i]]$createdAt),
+      "Primary", "Secondary"
+    ))
+}
+
+nftdf_updated <- bind_rows(df_split) %>%
+  arrange(desc(createdAt))
+```
+
+
+```{r}
+# Install package to read image
+install.packages("imager")
+library(stringr)
+regexp <- "'image': '[^']*"
+nftdf_updated$image <- str_match_all(nftdf_updated$nft, regexp) %>%
+  str_replace_all("'image': '", "")
+
+write.csv(nftdf_updated, "./NFT_Decentraland_Transformed.csv")
+
+# method to load images
+# load.image(nftdf_updated$image[1])
+```
+
+
+
+```{r}
+#Top 5 NFTs per category as tables
+#Install grid package before executing the code
+#install.packages("gridExtra")
+library(gridExtra)
+library(grid)
+nftDf <- read_csv("./NFT_Decentraland_Transformed.csv", col_types = cols())
+
+top5 <- nftDf %>% 
+  select(category, price,image) %>%
+  group_by(category) %>%
+  arrange(desc(price)) %>%
+  top_n(5,price)
+
+top5_id <- nftDf %>% 
+  select(id,category, price,image) %>%
+  group_by(category) %>%
+  arrange(desc(price)) %>%
+  top_n(5,price)
+
+top5
+
+data_estate <- filter(top5,category=='estate')
+data_parcel <- filter(top5,category=='parcel')
+data_ens <- filter(top5,category=='ens')
+data_wearable <-filter(top5,category=='wearable')
+```
+```{r}
+#setting theme for tables
+tt3 <- ttheme_minimal(
+  core=list(bg_params = list(fill = blues9[1:4], col=NA),
+            fg_params=list(fontface=3)),
+  colhead=list(fg_params=list(col="navyblue", fontface=4L)),
+  rowhead=list(fg_params=list(col="blue", fontface=3L)))
+
+pdf("Estate.pdf",width=10)
+grid.table(as.data.frame(data_estate), theme =tt3)
+dev.off()
+```
+```{r}
+pdf("parcel.pdf",width=10)
+grid.table(as.data.frame(data_parcel), theme =tt3)
+dev.off()
+```
+
+
+```{r}
+pdf("ens.pdf",width=10)
+grid.table(as.data.frame(data_ens), theme =tt3)
+dev.off()
+```
+
+```{r}
+pdf("wearable.pdf",width=20)
+grid.table(as.data.frame(data_wearable), theme =tt3)
+dev.off()
+```
+
