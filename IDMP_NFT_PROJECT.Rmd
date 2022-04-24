@@ -282,3 +282,16 @@ geom_smooth(aes(x=createdAt,
             size=0.5)+
 theme(axis.text.x=element_text(angle = 90))
 ```
+
+
+### Add wearable category
+```{r}
+
+nftDf <- read_csv("./NFT_Decentraland_Transformed.csv", col_types = cols())
+regexp <- "'searchWearableCategory': '[^']*"
+nftDf$wearableCategory <- str_match_all(nftdf_updated$nft, regexp) %>%
+  str_replace_all("'searchWearableCategory': '", "")
+nftDf$wearableCategory[nftDf$wearableCategory == "character(0)"] = NA
+write.csv(nftDf, "./NFT_Decentraland_Transformed.csv")
+
+```
