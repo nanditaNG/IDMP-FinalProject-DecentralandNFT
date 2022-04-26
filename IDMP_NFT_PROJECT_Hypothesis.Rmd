@@ -1,0 +1,536 @@
+---
+title: "NFT Decentraland Trends Predictions and Analysis"
+authors: "Nandita Gurwara, Shweta Mishra, Shailesh Chikne, Rishabh Chhaparia"
+date: "04/01/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+remove.packages("rlang")
+```
+```{r}
+install.packages("rlang")
+```
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+options(warn = -1)
+library(rlang)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(modelr)
+library(stringr)
+library(ggpubr)
+```
+
+
+```{r warning=FALSE}
+# Read the data from CSV files
+
+nftdf <- read_csv("./NFT_Decentraland.csv", col_types = cols())
+
+nftdf <- nftdf %>%
+  mutate(
+    createdAt = as.POSIXct(createdAt, origin = "1970-01-01"),
+    updatedAt = as.POSIXct(updatedAt, origin = "1970-01-01"),
+    expiresAt = as.POSIXct(expiresAt * 0.001, origin = "1970-01-01"),
+    price = price / (10**18)
+  )
+
+df_split <- split(nftdf, nftdf$nftAddress)
+
+for (i in 1:length(df_split)) {
+  df_split[[i]] <- df_split[[i]] %>%
+    mutate(sale_type = ifelse(createdAt == min(df_split[[i]]$createdAt),
+      "Primary", "Secondary"
+    ))
+}
+
+nftdf_updated <- bind_rows(df_split) %>%
+  arrange(desc(createdAt))
+```
+
+
+```{r}
+# Install package to read image
+install.packages("imager")
+library(stringr)
+regexp <- "'image': '[^']*"
+nftdf_updated$image <- str_match_all(nftdf_updated$nft, regexp) %>%
+  str_replace_all("'image': '", "")
+
+write.csv(nftdf_updated, "./NFT_Decentraland_Transformed.csv")
+
+# method to load images
+# load.image(nftdf_updated$image[1])
+```
+
+
+
+```{r}
+#Top 5 NFTs per category as tables
+#Install grid package before executing the code
+#install.packages("gridExtra")
+library(gridExtra)
+library(grid)
+nftDf <- read_csv("./NFT_Decentraland_Transformed.csv", col_types = cols())
+
+top5 <- nftDf %>% 
+  select(category, price,image) %>%
+  group_by(category) %>%
+  arrange(desc(price)) %>%
+  top_n(5,price)
+
+top5_id <- nftDf %>% 
+  select(id,category, price,image) %>%
+  group_by(category) %>%
+  arrange(desc(price)) %>%
+  top_n(5,price)
+
+top5
+
+data_estate <- filter(top5,category=='estate')
+data_parcel <- filter(top5,category=='parcel')
+data_ens <- filter(top5,category=='ens')
+data_wearable <-filter(top5,category=='wearable')
+```
+```{r}
+#setting theme for tables
+tt3 <- ttheme_minimal(
+  core=list(bg_params = list(fill = blues9[1:4], col=NA),
+            fg_params=list(fontface=3)),
+  colhead=list(fg_params=list(col="navyblue", fontface=4L)),
+  rowhead=list(fg_params=list(col="blue", fontface=3L)))
+
+pdf("Estate.pdf",width=10)
+grid.table(as.data.frame(data_estate), theme =tt3)
+dev.off()
+```
+```{r}
+pdf("parcel.pdf",width=10)
+grid.table(as.data.frame(data_parcel), theme =tt3)
+dev.off()
+```
+
+
+```{r}
+pdf("ens.pdf",width=10)
+grid.table(as.data.frame(data_ens), theme =tt3)
+dev.off()
+```
+
+```{r}
+pdf("wearable.pdf",width=20)
+grid.table(as.data.frame(data_wearable), theme =tt3)
+dev.off()
+```
+
+## Shweta - Some more visualizations
+
+## A
+
+## NFT distribution among categories
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+ggplot(nftDf,aes(x=category))+
+  geom_histogram(stat="count",aes(fill=category),show.legend = FALSE)+
+labs(title="Wearable has the highest amount of NFTs",
+     x="Different Categories of NFT")+
+theme_classic()
+```
+
+## B
+
+# Price and SD across ctaegories
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+ggplot(nftDf,aes(x=category))+
+  geom_boxplot(aes(y=log10(price),
+                     fill=category),
+                 show.legend = FALSE)+
+labs(title="Estate has the highest average price
+but the spread is more in Wearable.",
+     x="Categories of NFT",
+     y="Price of NFTs")+
+theme_classic()
+```
+
+## C
+
+# PRICE TRENDS OF TOP 5 
+
+# adding createdAt column for Visualization
+
+```{r tello}
+top5_id1 <- nftDf %>% 
+  select(id,category, price,image,createdAt) %>%
+  group_by(category) %>%
+  arrange(desc(price)) %>%
+  top_n(5,price)
+```
+
+#trying to visualize each category in different plots, hence segregating the data, also adding createdAt column
+
+```{r test}
+data_estate1 <- filter(top5_id1,category=='estate')
+data_parcel1 <- filter(top5_id1,category=='parcel')
+data_ens1 <- filter(top5_id1,category=='ens')
+data_wearable1 <- filter(top5_id1,category=='wearable')
+```
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
+my_colors <- fun_color_range(20)
+ggplot(top5_id1,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=0.1,size=0.07)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+#xlim(2020,2021)+  
+facet_grid(~category)+ 
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# ESTATE : top 5 price trend 
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
+my_colors <- fun_color_range(20)
+ggplot(data_estate1,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=0.1,size=0.07)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# PARCEL : top 5 price trend 
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
+my_colors <- fun_color_range(20)
+ggplot(data_parcel1,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=0.1,size=0.07)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years(2019)",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# ENS : top 5 price trend 
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
+my_colors <- fun_color_range(20)
+ggplot(data_ens1,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=0.1,size=0.07)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# WEARABLE : top 5 price trend 
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
+my_colors <- fun_color_range(20)
+ggplot(data_wearable1,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=0.1,size=0.07)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# Creating tables for top ID's addresses of each category.
+
+```{r Estate_top}
+data_estate_top <- filter(nftdf_updated,nftAddress=='0x959e104e1a4db6317fa58f8295f586e1a978c297')
+data_parcel_top <- filter(nftdf_updated,nftAddress=='0xf87e31492faf9a91b02ee0deaad50d51d56d5d4d')
+data_ens_top <- filter(nftdf_updated,nftAddress=='0x2a187453064356c898cae034eaed119e1663acb8')
+data_wearable_top <- filter(nftdf_updated,nftAddress=='0xc1f4b0eea2bd6690930e6c66efd3e197d620b9c2')
+```
+
+# Plotting secondary /primary prices Vs UpdatedAt
+
+# ESTATE
+
+```{r Estate_top_1}
+ggplot(data_estate_top,aes(x=updatedAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=1,size=1)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+ylim(-0e+06,0.5e+06)+  
+geom_smooth(aes(x=updatedAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# PARCEL
+
+```{r Estate_top_1}
+ggplot(data_parcel_top,aes(x=updatedAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=1,size=1)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+ylim(-0e+05,4.1e+05)+  
+geom_smooth(aes(x=updatedAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# ENS
+
+```{r yellow}
+
+ggplot(data_ens_top,aes(x=updatedAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=1,size=1)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=updatedAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# WEARABLE
+
+```{r yellow}
+
+ggplot(data_wearable_top,aes(x=updatedAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=1,size=1)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=updatedAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# Hypothesis Testing - 2020 - 2021 - Price decreases
+
+
+
+## filtering for 2020 & 2021
+
+```{r Dataset}
+nft_updated_filtered <- nftdf_updated %>% 
+     select(id,nft,category,price,image,
+            createdAt,updatedAt,sale_type) %>%
+filter(createdAt>"2019-12-31 21:26:40")
+```
+
+## adding wearable category
+
+```{r wearable category}
+regexp <- "'searchWearableCategory': '[^']*"
+nft_updated_filtered$wearableCategory <- str_match_all(nft_updated_filtered$nft, regexp) %>%
+  str_replace_all("'searchWearableCategory': '", "")
+nft_updated_filtered$wearableCategory[nftDf$wearableCategory == "character(0)"] = NA
+```
+
+# ESTATE
+
+## filtering estate
+
+```{r Dataset_Estate}
+nft_updated_filtered_E <- nft_updated_filtered %>% 
+filter(category=='estate')
+```
+
+## plotting ESTATE
+
+```{r Dataset_Estate}
+ggplot(nft_updated_filtered_E,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=1,size=1)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="ESTATE FROM 2020 TO 2022",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+#H0: price remains the same over the years for Estate
+#Ha: price increases over the years
+# alpha: 0.05
+
+```{r 256}
+library(modelr)
+fit_E <- lm(price~createdAt,data=nft_updated_filtered_E)
+summary(fit_E)
+```
+
+# null hypothesis rejected as p-value is quite low ~ 2e-16.
+
+```{r 256}
+
+fit_E1 <- lm(price~createdAt+updatedAt,data=nft_updated_filtered_E)
+summary(fit_E1)
+```
+
+# PARCEL
+
+## filtering pracel
+
+```{r Dataset_Estate}
+nft_updated_filtered_P <- nft_updated_filtered %>% 
+filter(category=='parcel')
+```
+
+## plotting parcel
+
+```{r Dataset_Estate}
+ggplot(nft_updated_filtered_P,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=price),alpha=1,size=1)+
+scale_colour_gradientn(colors = my_colors)+   
+labs(title="PARCEL FROM 2020 TO 2022",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+#H0: price remains the same over the years for Parcel
+#Ha: price increases and then decreases over the years
+# alpha: 0.05
+
+```{r 256}
+library(modelr)
+fit_P <- lm(price~createdAt,data=nft_updated_filtered_P)
+summary(fit_P)
+```
+
+```{r 256}
+library(modelr)
+fit_P1 <- lm(price~createdAt+updatedAt,data=nft_updated_filtered_P)
+summary(fit_P1)
+```
+
+# WEARABLE
+
+## filtering WEARABLE
+
+```{r Dataset_Estate}
+nft_updated_filtered_W <- nft_updated_filtered %>% 
+filter(category=='wearable')
+```
+
+```{r Dataset_Estate}
+nft_updated_filtered_W <- nft_updated_filtered %>% 
+filter(category=='wearable')
+```
+
+```{r Dataset_Estate}
+ggplot(nft_updated_filtered_W,aes(x=wearableCategory))+
+  geom_bar()+
+labs(title="Wearable FROM 2020 TO 2022",
+     x="Categories",
+     y="Count")+
+theme(axis.text.x=element_text(angle = 90))
+```
+
+# FAILS TO REJECT
+
+```{r }
+fit_W <- lm(price~wearableCategory,data=nft_updated_filtered_W)
+summary(fit_W)
+```
+
+```{r }
+fit_W1 <- lm(price~createdAt+updatedAt,data=nft_updated_filtered_W)
+summary(fit_W1)
+```
+
+```{r 256}
+library(modelr)
+fit_All <- lm(price~category+createdAt,data=nft_updated_filtered)
+summary(fit_All)
+```
+
+
+###############
+
+```{r pressure, echo=FALSE}
+
+ggplot(nft_updated_filtered,aes(x=createdAt))+
+  geom_point(aes(y=price
+             ,color=as.factor(category)),alpha=1,size=0.5)+
+labs(title="Change of NFT Price (in Crypto) over the years",
+     x="Years",
+     y="Price (in Crypto Currency)")+
+ylim(-0.1e+00,10900e+00)+ 
+geom_smooth(aes(x=createdAt,
+                y=price),
+            color="Red",
+            size=0.5)+
+theme(axis.text.x=element_text(angle = 90))
+```
