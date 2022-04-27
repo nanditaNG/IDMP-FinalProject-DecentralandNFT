@@ -6,13 +6,6 @@ output:
   pdf_document: default
   html_document: default
 ---
-```{r}
-remove.packages("rlang")
-```
-```{r}
-install.packages("rlang")
-```
-
 
 
 ```{r setup, include=FALSE}
@@ -69,7 +62,25 @@ write.csv(nftdf_updated, "./NFT_Decentraland_Transformed.csv")
 # load.image(nftdf_updated$image[1])
 ```
 
+```{r echo=FALSE}
+library(psych)
+nftdf_updated_tmp <- nftdf_updated %>%
+mutate(category = case_when(category == "parcel" ~ 1,
+category == "estate" ~ 2,
+category == "ens" ~ 3,
+category == "wearable" ~ 4 ))
 
+
+
+ggplot(data = nftdf_updated_tmp, mapping = aes(x = category,
+y = sale_type,
+fill = log2(price))) +
+geom_tile() +
+labs(x = "Category", y = "Sale type", fill = "Price", title = 'Heatmap category v/s price')
+
+
+corPlot(nftdf_updated_tmp[c('category', 'price')], cex = 1.2)
+```
 
 ```{r}
 #Top 5 NFTs per category as tables
@@ -135,7 +146,7 @@ dev.off()
 
 ## NFT distribution among categories
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 library(ggplot2)
 ggplot(nftDf,aes(x=category))+
   geom_histogram(stat="count",aes(fill=category),show.legend = FALSE)+
@@ -148,7 +159,7 @@ theme_classic()
 
 # Price and SD across ctaegories
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 library(ggplot2)
 ggplot(nftDf,aes(x=category))+
   geom_boxplot(aes(y=log10(price),
@@ -184,7 +195,7 @@ data_ens1 <- filter(top5_id1,category=='ens')
 data_wearable1 <- filter(top5_id1,category=='wearable')
 ```
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 library(ggplot2)
 fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
 my_colors <- fun_color_range(20)
@@ -205,7 +216,7 @@ theme(axis.text.x=element_text(angle = 90))
 
 # ESTATE : top 5 price trend 
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 library(ggplot2)
 fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
 my_colors <- fun_color_range(20)
@@ -225,7 +236,7 @@ theme(axis.text.x=element_text(angle = 90))
 
 # PARCEL : top 5 price trend 
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 library(ggplot2)
 fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
 my_colors <- fun_color_range(20)
@@ -245,7 +256,7 @@ theme(axis.text.x=element_text(angle = 90))
 
 # ENS : top 5 price trend 
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 library(ggplot2)
 fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
 my_colors <- fun_color_range(20)
@@ -265,7 +276,7 @@ theme(axis.text.x=element_text(angle = 90))
 
 # WEARABLE : top 5 price trend 
 
-```{r pressure, echo=FALSE}
+```{r echo=FALSE}
 library(ggplot2)
 fun_color_range <- colorRampPalette(c("yellow", "black","red")) 
 my_colors <- fun_color_range(20)
