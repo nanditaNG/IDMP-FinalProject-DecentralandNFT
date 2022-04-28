@@ -386,12 +386,480 @@ theme(axis.text.x=element_text(angle = 90))
 
 ### Add wearable category
 ```{r}
-
-nftDf <- read_csv("./NFT_Decentraland_Transformed.csv", col_types = cols())
+nftDf <-
+  read_csv("./NFT_Decentraland_Transformed.csv", col_types = cols())
 regexp <- "'searchWearableCategory': '[^']*"
-nftDf$wearableCategory <- str_match_all(nftdf_updated$nft, regexp) %>%
+nftDf$wearableCategory <-
+  str_match_all(nftdf_updated$nft, regexp) %>%
   str_replace_all("'searchWearableCategory': '", "")
 nftDf$wearableCategory[nftDf$wearableCategory == "character(0)"] = NA
 write.csv(nftDf, "./NFT_Decentraland_Transformed.csv")
 
 ```
+
+
+```{r}
+library(caret)
+library(ggplot2)
+library(pls)
+library(mboost)
+
+#to start with, include category as the only predictor
+null_model <- lm(price ~ category, data = nftDf)
+# full model includes all the predictors (worst case scenario)
+full_model <-
+  lm(price ~ category + as.numeric(createdAt) + log2(blockNumber),
+     data = nftDf)
+step_model <- step(
+  null_model,
+  scope = list(lower = null_model, upper = full_model),
+  direction = "forward"
+)
+
+
+timeSlices <-
+  createTimeSlices(
+    1:nrow(nftDf),
+    initialWindow = 12000,
+    horizon = 100,
+    fixedWindow = TRUE
+  )
+
+str(timeSlices, max.level = 1)
+trainSlices <- timeSlices[[1]]
+testSlices <- timeSlices[[2]]
+
+plsFitTime <-
+  train(
+    price ~ category + as.numeric(createdAt) + log2(blockNumber),
+    data = nftDf[trainSlices[[1]], ],
+    method = "lm",
+    preProc = c("center", "scale")
+  )
+
+
+pred <- predict(plsFitTime, nftDf[testSlices[[1]], ])
+
+true <- nftDf$price[testSlices[[1]]]
+
+plot(true,
+     col = "red",
+     ylab = "true (red) , pred (blue)",
+     ylim = range(c(pred, true)))
+points(pred, col = "blue")
+
+plsFitTime
+
+```
+
+# CNN Classification
+```{r}
+library(keras)
+library(magick)
+library(tidyverse)
+library(imager)
+library(caret)
+
+nft_w <- nftDf %>% filter(category == "wearable")
+df <- distinct(nft_w, nft_w$image, nft_w$wearableCategory)
+i <- 1
+for (d in 1:nrow(df)) {
+  path <- df[d, ]$`nft_w$image`
+  dir <- df[d, ]$`nft_w$wearableCategory`
+  img <- image_read(path)
+  image_write(img, paste0("./train_data/", dir, "/img_", i, ".png"), format =
+                "png")
+  i <- i + 1
+}
+
+
+
+get_dim <- function(x) {
+  img <- load.image(x)
+  df_img <- data.frame(height = height(img),
+                       width = width(img),
+                       filename = x)
+  return(df_img)
+}
+
+```
+
+```{r}
+
+
+
+# Desired height and width of images
+target_size <- c(128, 128)
+
+
+
+# Batch size for training the model
+batch_size <- 32
+
+
+
+# Image Generator
+train_data_gen <-
+  image_data_generator(
+    rescale = 1 / 255,
+    # Scaling pixel value
+    horizontal_flip = T,
+    # Flip image horizontally
+    vertical_flip = T,
+    # Flip image vertically
+    rotation_range = 45,
+    # Rotate image from 0 to 45 degrees
+    zoom_range = 0.25,
+    # Zoom in or zoom out range
+    validation_split = 0.2 # 20% data as validation data
+  )
+
+
+
+# Training Dataset
+train_image_array_gen <-
+  flow_images_from_directory(
+    directory = "./train_data/",
+    # Folder of the data
+    target_size = target_size,
+    # target of the image dimension (64 x 64)
+    color_mode = "rgb",
+    # use RGB color
+    batch_size = batch_size ,
+    seed = 123,
+    # set random seed
+    subset = "training",
+    # declare that this is for training data
+    generator = train_data_gen
+  )
+
+
+
+# Validation Dataset
+val_image_array_gen <-
+  flow_images_from_directory(
+    directory = "./train_data/",
+    target_size = target_size,
+    color_mode = "rgb",
+    batch_size = batch_size ,
+    seed = 123,
+    subset = "validation",
+    # declare that this is the validation data
+    generator = train_data_gen
+  )
+
+
+
+# Number of training samples
+train_samples <- train_image_array_gen$n
+
+
+
+# Number of validation samples
+valid_samples <- val_image_array_gen$n
+
+
+
+# Number of target classes/categories
+output_n <- n_distinct(train_image_array_gen$classes)
+
+
+
+# Get the class proportion
+table("\nFrequency" = factor(train_image_array_gen$classes)) %>%
+  prop.table()
+```
+
+
+```{r}
+# Set Initial Random Weight
+tensorflow::tf$random$set_seed(123)
+
+
+
+model <- keras_model_sequential(name = "simple_model") %>%
+  
+  # Convolution Layer
+  layer_conv_2d(
+    filters = 16,
+    kernel_size = c(3, 3),
+    padding = "same",
+    activation = "relu",
+    input_shape = c(target_size, 3)
+  ) %>%
+  
+  
+  
+  # Max Pooling Layer
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  
+  # Flattening Layer
+  layer_flatten() %>%
+  
+  # Dense Layer
+  layer_dense(units = 16,
+              activation = "relu") %>%
+  
+  # Output Layer
+  layer_dense(units = output_n,
+              activation = "softmax",
+              name = "Output")
+
+model
+```
+
+```{r}
+model %>%
+  compile(loss = "categorical_crossentropy",
+          optimizer = optimizer_adam(lr = 0.001),
+          metrics = "accuracy")
+
+
+
+# Fit data into model
+history <- model %>%
+  fit(
+    # training data
+    train_image_array_gen,
+    
+    
+    
+    # training epochs
+    steps_per_epoch = as.integer(train_samples / batch_size),
+    epochs = 30,
+    
+    # validation data
+    validation_data = val_image_array_gen,
+    validation_steps = as.integer(valid_samples / batch_size)
+  )
+
+
+
+plot(history)
+```
+
+
+```{r}
+
+val_data <- data.frame(file_name = paste0("./train_data/",
+                                          val_image_array_gen$filenames)) %>%
+  mutate(
+    class = str_extract(
+      file_name,
+      "earring|eyes|eyewear|feet|hair|hat|helmet|lower_body|mask|mouth|tiara|top_head|upper_body"
+    )
+  )
+
+head(val_data, 10)
+```
+
+
+```{r}
+# Function to convert image to array
+image_prep <- function(x) {
+          arrays <- lapply(x, function(path) {
+                    img <- image_load(path, target_size = target_size,
+                    grayscale = F # Set FALSE if image is RGB
+                    )
+                    
+                    x <- image_to_array(img)
+                    x <- array_reshape(x, c(1, dim(x)))
+                    x <- x/255 # rescale image pixel
+                    })
+          do.call(abind::abind, c(arrays, list(along = 1)))
+}
+```
+
+
+```{r}
+test_x <- image_prep(val_data$file_name)
+
+
+
+# Check dimension of testing data set
+dim(test_x)
+```
+
+
+```{r}
+library(matrixStats)
+pred_test <- predict(model, test_x)
+
+df1 <- pred_test
+
+pred_test <- apply(df1, 1, function(x)
+  which(x == max(x)))
+
+pred_test <- pred_test - 1
+
+head(pred_test, 10)
+```
+
+```{r}
+# Convert encoding to label
+decode <- function(x) {
+  case_when(
+    x == 0 ~ "earring",
+    x == 1 ~ "eyes",
+    x == 2 ~ "eyewear",
+    x == 3 ~ "feet",
+    x == 4 ~ "hair",
+    x == 5 ~ "hat",
+    x == 6 ~ "helmet",
+    x == 7 ~ "lower_body",
+    x == 8 ~ "mask",
+    x == 9 ~ "mouth",
+    x == 10 ~ "tiara",
+    x == 11 ~ "top_head",
+    x == 12 ~ "upper_body"
+  )
+}
+
+
+
+pred_test <- sapply(pred_test, decode)
+
+
+
+head(pred_test, 10)
+```
+
+```{r}
+confusionMatrix(as.factor(pred_test),
+                as.factor(val_data$class))
+```
+
+##Big Model
+
+``` {r}
+
+tensorflow::tf$random$set_seed(123)
+
+model_big <- keras_model_sequential() %>%
+  
+  # First convolutional layer
+  layer_conv_2d(
+    filters = 32,
+    kernel_size = c(5, 5),
+    # 5 x 5 filters
+    padding = "same",
+    activation = "relu",
+    input_shape = c(target_size, 3)
+  ) %>%
+  
+  # Second convolutional layer
+  layer_conv_2d(
+    filters = 32,
+    kernel_size = c(3, 3),
+    # 3 x 3 filters
+    padding = "same",
+    activation = "relu"
+  ) %>%
+  
+  # Max pooling layer
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  
+  # Third convolutional layer
+  layer_conv_2d(
+    filters = 64,
+    kernel_size = c(3, 3),
+    padding = "same",
+    activation = "relu"
+  ) %>%
+  
+  # Max pooling layer
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  
+  # Fourth convolutional layer
+  layer_conv_2d(
+    filters = 128,
+    kernel_size = c(3, 3),
+    padding = "same",
+    activation = "relu"
+  ) %>%
+  
+  # Max pooling layer
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  
+  # Fifth convolutional layer
+  layer_conv_2d(
+    filters = 256,
+    kernel_size = c(3, 3),
+    padding = "same",
+    activation = "relu"
+  ) %>%
+  
+  # Max pooling layer
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  
+  # Flattening layer
+  layer_flatten() %>%
+  
+  # Dense layer
+  layer_dense(units = 64,
+              activation = "relu") %>%
+  
+  # Output layer
+  layer_dense(name = "Output",
+              units = 13,
+              activation = "softmax")
+
+model_big
+
+
+```
+
+
+``` {r}
+
+model_big %>%
+  compile(loss = "categorical_crossentropy",
+          optimizer = optimizer_adam(lr = 0.001),
+          metrics = "accuracy")
+
+history <- model %>%
+  fit_generator(
+    # training data
+    train_image_array_gen,
+    
+    # epochs
+    steps_per_epoch = as.integer(train_samples / batch_size),
+    epochs = 50,
+    
+    # validation data
+    validation_data = val_image_array_gen,
+    validation_steps = as.integer(valid_samples / batch_size),
+    
+    # print progress but don't create graphic
+    verbose = 1,
+    view_metrics = 0
+  )
+
+plot(history)
+```
+
+
+```{r}
+
+pred_test <- predict(model_big, test_x)
+
+pred_test <- apply(pred_test, 1, function(x)
+  which(x == max(x)))
+
+pred_test <- pred_test - 1
+
+head(pred_test, 10)
+
+pred_test <- sapply(pred_test, decode)
+
+head(pred_test, 10)
+
+```
+
+
+```{r}
+confusionMatrix(as.factor(pred_test),
+                as.factor(val_data$class))
+
+```
+
