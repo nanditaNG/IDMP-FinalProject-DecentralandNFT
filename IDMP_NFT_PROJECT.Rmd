@@ -18,7 +18,7 @@ library(ggplot2)
 library(modelr)
 library(stringr)
 library(ggpubr)
-install.packages("htmlwidgets")
+#install.packages("htmlwidgets")
 ```
 
 
@@ -69,7 +69,7 @@ write.csv(nftdf_updated, "./NFT_Decentraland_Transformed.csv")
 ```
 
 ```{r echo=FALSE}
-install.packages("psych")
+#install.packages("psych")
 library(psych)
 nftdf_updated_tmp <- nftdf_updated %>%
 mutate(category = case_when(category == "parcel" ~ 1,
@@ -144,7 +144,7 @@ df1 <- reactable(data_estate,
             height = "50", width = "50"
           ))))
 
-html_file1 <- "table1.html"
+html_file1 <- "Estate.html"
 img_file1 <- "Estate.png"
 
 #table1 <- reactable(df1)
@@ -166,7 +166,7 @@ df2 <- reactable(data_wearable,
             height = "50", width = "50"
           ))))
 
-html_file2 <- "table2.html"
+html_file2 <- "wearable.html"
 img_file2 <- "wearable.png"
 
 #table <- reactable(df)
@@ -186,7 +186,7 @@ df3 <- reactable(data_parcel,
             height = "50", width = "50"
           ))))
 
-html_file3 <- "table2.html"
+html_file3 <- "parcel.html"
 img_file3 <- "parcel.png"
 
 #table <- reactable(df)
