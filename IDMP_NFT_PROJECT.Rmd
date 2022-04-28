@@ -56,7 +56,7 @@ nftdf_updated
 
 ```{r}
 # Install package to read image
-install.packages("imager")
+#install.packages("imager")
 #library(stringr)
 regexp <- "'image': '[^']*"
 nftdf_updated$image <- str_match_all(nftdf_updated$nft, regexp) %>%
@@ -90,11 +90,19 @@ corPlot(nftdf_updated_tmp[c('category', 'price')], cex = 1.2)
 ```
 
 ```{r}
-#Top 5 NFTs per category as tables
-#Install grid package before executing the code
-#install.packages("gridExtra")
+#Top 5 NFTs per category as tables with images
+
+#Install all the packages before running the code
+
 library(gridExtra)
 library(grid)
+library(htmlwidgets)
+library(webshot)
+library(reactablefmtr)
+library(tidyverse)
+library(nflfastR)
+
+#top5 with id 
 
 top5 <- nftdf_updated %>% 
   select(category, price,image) %>%
@@ -102,30 +110,29 @@ top5 <- nftdf_updated %>%
   arrange(desc(price)) %>%
   top_n(5,price)
 
+#top 5 without id
+
 top5_id <- nftdf_updated %>% 
   select(id,category, price,image) %>%
   group_by(category) %>%
   arrange(desc(price)) %>%
   top_n(5,price)
 
-#top5
+#filtering dataset by category
 
 data_estate <- filter(top5,category=='estate')
 data_parcel <- filter(top5,category=='parcel')
 data_ens <- filter(top5,category=='ens')
 data_wearable <-filter(top5,category=='wearable')
 
-data_ens
 #install.packages("reactablefmtr")
 #install.packages("nflfastR")
 #install.packages("webshot")
 #install.packages("htmlwidgets")
 #webshot::install_phantomjs()
-library(htmlwidgets)
-library(webshot)
-library(reactablefmtr)
-library(tidyverse)
-library(nflfastR)
+
+
+#Displaying top 5 estate as a table with respective images
 
 reactable(data_estate)
 
@@ -140,12 +147,14 @@ df1 <- reactable(data_estate,
 html_file1 <- "table1.html"
 img_file1 <- "Estate.png"
 
-#table <- reactable(df)
+#table1 <- reactable(df1)
 saveWidget(widget = df1, file = html_file1, selfcontained = TRUE)
 webshot(url = html_file, file = img_file1, delay = 0.1, vwidth = 500,vheight = 500)
 
 ```
 ```{r}
+
+#Displaying top 5 wearable as a table with respective images
 
 reactable(data_wearable)
 
@@ -165,6 +174,7 @@ saveWidget(widget = df2, file = html_file2, selfcontained = TRUE)
 webshot(url = html_file2, file = img_file2, delay = 0.1, vwidth = 500,vheight = 500)
 ```
 ```{r}
+#Displaying top 5 parcel as a table with respective images
 
 reactable(data_parcel)
 
@@ -206,6 +216,8 @@ webshot(url = html_file3, file = img_file3, delay = 0.1, vwidth = 500,vheight = 
 
 
 ```{r}
+#Displaying ens as table
+
 png("Ens.png",height=300,width=1000)
 grid.table(as.data.frame(data_ens), theme =tt3)
 dev.off()
