@@ -18,6 +18,7 @@ library(ggplot2)
 library(modelr)
 library(stringr)
 library(ggpubr)
+install.packages("htmlwidgets")
 ```
 
 
@@ -26,6 +27,7 @@ library(ggpubr)
 
 nftdf <- read_csv("./NFT_Decentraland.csv", col_types = cols())
 
+#Adding columns createdAt, updatedAt and expiresAt to the dataset
 nftdf <- nftdf %>%
   mutate(
     createdAt = as.POSIXct(createdAt, origin = "1970-01-01"),
@@ -33,6 +35,7 @@ nftdf <- nftdf %>%
     expiresAt = as.POSIXct(expiresAt * 0.001, origin = "1970-01-01"),
     price = price / (10**18)
   )
+
 
 df_split <- split(nftdf, nftdf$nftAddress)
 
@@ -45,13 +48,16 @@ for (i in 1:length(df_split)) {
 
 nftdf_updated <- bind_rows(df_split) %>%
   arrange(desc(createdAt))
+
+nftdf_updated
+
 ```
 
 
 ```{r}
 # Install package to read image
 install.packages("imager")
-library(stringr)
+#library(stringr)
 regexp <- "'image': '[^']*"
 nftdf_updated$image <- str_match_all(nftdf_updated$nft, regexp) %>%
   str_replace_all("'image': '", "")
@@ -63,6 +69,7 @@ write.csv(nftdf_updated, "./NFT_Decentraland_Transformed.csv")
 ```
 
 ```{r echo=FALSE}
+install.packages("psych")
 library(psych)
 nftdf_updated_tmp <- nftdf_updated %>%
 mutate(category = case_when(category == "parcel" ~ 1,
@@ -88,56 +95,126 @@ corPlot(nftdf_updated_tmp[c('category', 'price')], cex = 1.2)
 #install.packages("gridExtra")
 library(gridExtra)
 library(grid)
-nftDf <- read_csv("./NFT_Decentraland_Transformed.csv", col_types = cols())
 
-top5 <- nftDf %>% 
+top5 <- nftdf_updated %>% 
   select(category, price,image) %>%
   group_by(category) %>%
   arrange(desc(price)) %>%
   top_n(5,price)
 
-top5_id <- nftDf %>% 
+top5_id <- nftdf_updated %>% 
   select(id,category, price,image) %>%
   group_by(category) %>%
   arrange(desc(price)) %>%
   top_n(5,price)
 
-top5
+#top5
 
 data_estate <- filter(top5,category=='estate')
 data_parcel <- filter(top5,category=='parcel')
 data_ens <- filter(top5,category=='ens')
 data_wearable <-filter(top5,category=='wearable')
+
+data_ens
+#install.packages("reactablefmtr")
+#install.packages("nflfastR")
+#install.packages("webshot")
+#install.packages("htmlwidgets")
+#webshot::install_phantomjs()
+library(htmlwidgets)
+library(webshot)
+library(reactablefmtr)
+library(tidyverse)
+library(nflfastR)
+
+reactable(data_estate)
+
+reactable(data_estate,
+          columns = list(image = colDef(cell = embed_img())))
+
+df1 <- reactable(data_estate,
+          columns = list(image = colDef(cell = embed_img(
+            height = "50", width = "50"
+          ))))
+
+html_file1 <- "table1.html"
+img_file1 <- "Estate.png"
+
+#table <- reactable(df)
+saveWidget(widget = df1, file = html_file1, selfcontained = TRUE)
+webshot(url = html_file, file = img_file1, delay = 0.1, vwidth = 500,vheight = 500)
+
 ```
+```{r}
+
+reactable(data_wearable)
+
+reactable(data_wearable,
+          columns = list(image = colDef(cell = embed_img())))
+
+df2 <- reactable(data_wearable,
+          columns = list(image = colDef(cell = embed_img(
+            height = "50", width = "50"
+          ))))
+
+html_file2 <- "table2.html"
+img_file2 <- "wearable.png"
+
+#table <- reactable(df)
+saveWidget(widget = df2, file = html_file2, selfcontained = TRUE)
+webshot(url = html_file2, file = img_file2, delay = 0.1, vwidth = 500,vheight = 500)
+```
+```{r}
+
+reactable(data_parcel)
+
+reactable(data_parcel,
+          columns = list(image = colDef(cell = embed_img())))
+
+df3 <- reactable(data_parcel,
+          columns = list(image = colDef(cell = embed_img(
+            height = "50", width = "50"
+          ))))
+
+html_file3 <- "table2.html"
+img_file3 <- "parcel.png"
+
+#table <- reactable(df)
+saveWidget(widget = df3, file = html_file3, selfcontained = TRUE)
+webshot(url = html_file3, file = img_file3, delay = 0.1, vwidth = 500,vheight = 500)
+```
+
+
 ```{r}
 #setting theme for tables
-tt3 <- ttheme_minimal(
-  core=list(bg_params = list(fill = blues9[1:4], col=NA),
-            fg_params=list(fontface=3)),
-  colhead=list(fg_params=list(col="navyblue", fontface=4L)),
-  rowhead=list(fg_params=list(col="blue", fontface=3L)))
+#tt3 <- ttheme_minimal(
+#  core=list(bg_params = list(fill = blues9[1:4], col=NA),
+#            fg_params=list(fontface=3)),
+#  colhead=list(fg_params=list(col="navyblue", fontface=4L)),
+#  rowhead=list(fg_params=list(col="blue", fontface=3L)))
 
-pdf("Estate.pdf",width=10)
-grid.table(as.data.frame(data_estate), theme =tt3)
-dev.off()
-```
-```{r}
-pdf("parcel.pdf",width=10)
-grid.table(as.data.frame(data_parcel), theme =tt3)
-dev.off()
+#png("Estate.png",height=300,width=1000)
+#grid.table(as.data.frame(data_estate_new), theme =tt3)
+#dev.off()
 ```
 
+```{r}
+#png("Parcel.png",height=300,width=1000)
+#grid.table(as.data.frame(data_parcel), theme =tt3)
+#dev.off()
+```
+
 
 ```{r}
-pdf("ens.pdf",width=10)
+png("Ens.png",height=300,width=1000)
 grid.table(as.data.frame(data_ens), theme =tt3)
 dev.off()
 ```
 
 ```{r}
-pdf("wearable.pdf",width=20)
-grid.table(as.data.frame(data_wearable), theme =tt3)
-dev.off()
+#png("Wearable.png",height=300,width=1500)
+#grid.table(as.data.frame(data_wearable), theme =tt3)
+#dev.off()
 ```
 
 ## Shweta - Some more visualizations
