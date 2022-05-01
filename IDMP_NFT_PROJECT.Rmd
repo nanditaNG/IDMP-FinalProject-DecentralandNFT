@@ -236,19 +236,7 @@ dev.off()
 #dev.off()
 ```
 
-### Add wearable category
-
-```{r}
-nftDf <-
-  read_csv("./NFT_Decentraland_Transformed.csv", col_types = cols())
-regexp <- "'searchWearableCategory': '[^']*"
-nftDf$wearableCategory <-
-  str_match_all(nftdf_updated$nft, regexp) %>%
-  str_replace_all("'searchWearableCategory': '", "")
-nftDf$wearableCategory[nftDf$wearableCategory == "character(0)"] = NA
-write.csv(nftDf, "./NFT_Decentraland_Transformed.csv")
-
-```
+# EDA -- Price trend among the categories
 
 ## A
 
