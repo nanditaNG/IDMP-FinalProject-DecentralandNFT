@@ -126,12 +126,20 @@ top5_id <- nftdf_updated %>%
   arrange(desc(price)) %>%
   top_n(5,price)
 
-#filtering dataset by category
+#filtering dataset by category for top 5
 
 data_estate <- filter(top5,category=='estate')
 data_parcel <- filter(top5,category=='parcel')
 data_ens <- filter(top5,category=='ens')
 data_wearable <-filter(top5,category=='wearable')
+
+#filtering dataset by category for bottom 5
+
+data_estate_bottom <- filter(bottom_5,category=='estate')
+data_wearable_bottom <- filter(bottom_5,category=='wearable')
+data_parcel_bottom <- filter(bottom_5,category=='parcel')
+data_ens_bottom <- filter(bottom_5,category=='ens')
+data_wear_bottom <- head(data_wearable_bottom)
 
 #install.packages("reactablefmtr")
 #install.packages("nflfastR")
@@ -157,7 +165,7 @@ img_file1 <- "Estate.png"
 
 #table1 <- reactable(df1)
 saveWidget(widget = df1, file = html_file1, selfcontained = TRUE)
-webshot(url = html_file, file = img_file1, delay = 0.1, vwidth = 500,vheight = 500)
+webshot(url = html_file1, file = img_file1, delay = 0.1, vwidth = 500,vheight = 500)
 
 ```
 ```{r}
@@ -204,16 +212,64 @@ webshot(url = html_file3, file = img_file3, delay = 0.1, vwidth = 500,vheight = 
 
 
 ```{r}
-#setting theme for tables
-#tt3 <- ttheme_minimal(
-#  core=list(bg_params = list(fill = blues9[1:4], col=NA),
-#            fg_params=list(fontface=3)),
-#  colhead=list(fg_params=list(col="navyblue", fontface=4L)),
-#  rowhead=list(fg_params=list(col="blue", fontface=3L)))
+#Printing lowest priced NFTs here for all 3 categories 
 
-#png("Estate.png",height=300,width=1000)
-#grid.table(as.data.frame(data_estate_new), theme =tt3)
-#dev.off()
+#For estate
+reactable(data_estate_bottom)
+
+reactable(data_estate_bottom,
+          columns = list(image = colDef(cell = embed_img())))
+
+df_bottom <- reactable(data_estate_bottom,
+          columns = list(image = colDef(cell = embed_img(
+            height = "50", width = "50"
+          ))))
+
+html_file_bottom <- "Estate_bottom.html"
+img_file_bottom <- "Estate_bottom.png"
+
+#table1 <- reactable(df1)
+saveWidget(widget = df_bottom, file = html_file_bottom, selfcontained = TRUE)
+webshot(url = html_file_bottom, file = img_file_bottom, delay = 0.1, vwidth = 500,vheight = 500)
+
+#For wearables
+
+reactable(data_wear_bottom)
+
+reactable(data_wear_bottom,
+          columns = list(image = colDef(cell = embed_img())))
+
+df_bottom_wear <- reactable(data_wear_bottom,
+          columns = list(image = colDef(cell = embed_img(
+            height = "50", width = "50"
+          ))))
+
+html_file_wear <- "wearable_bottom_wear.html"
+img_file_wear <- "wearable_bottom_wear.png"
+
+#table1 <- reactable(df1)
+saveWidget(widget = df_bottom_wear, file = html_file_wear, selfcontained = TRUE)
+webshot(url = html_file_wear, file = img_file_wear, delay = 0.1, vwidth = 500,vheight = 500)
+
+#For parcel
+
+reactable(data_parcel_bottom)
+
+reactable(data_parcel_bottom,
+          columns = list(image = colDef(cell = embed_img())))
+
+df_bottom_parcel <- reactable(data_parcel_bottom,
+          columns = list(image = colDef(cell = embed_img(
+            height = "50", width = "50"
+          ))))
+
+html_file_parcel <- "parcel_bottom.html"
+img_file_parcel <- "parcel_bottom.png"
+
+#table1 <- reactable(df1)
+saveWidget(widget = df_bottom_parcel, file = html_file_parcel, selfcontained = TRUE)
+webshot(url = html_file_parcel, file = img_file_parcel, delay = 0.1, vwidth = 500,vheight = 500)
+
 ```
 
 ```{r}
@@ -223,6 +279,7 @@ webshot(url = html_file3, file = img_file3, delay = 0.1, vwidth = 500,vheight = 
 ```
 
 ```{r}
+#top 5 ens nft
 #Displaying ens as table
 
 png("Ens.png",height=300,width=1000)
@@ -231,9 +288,12 @@ dev.off()
 ```
 
 ```{r}
-#png("Wearable.png",height=300,width=1500)
-#grid.table(as.data.frame(data_wearable), theme =tt3)
-#dev.off()
+#bottom 5 ens nft
+#Displaying ens as table
+
+png("Ens_bottom.png",height=300,width=1000)
+grid.table(as.data.frame(data_ens_bottom), theme =tt3)
+dev.off()
 ```
 
 # EDA -- Price trend among the categories
